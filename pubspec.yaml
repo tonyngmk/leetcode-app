@@ -1,0 +1,65 @@
+name: algoflow
+description: "LeetCode-inspired coding challenge mobile app"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_bloc: ^8.1.6
+
+  # Navigation
+  go_router: ^14.8.1
+
+  # Dependency injection
+  get_it: ^8.0.3
+  injectable: ^2.5.0
+
+  # Networking
+  dio: ^5.7.0
+
+  # Local storage
+  hive_flutter: ^1.1.0
+
+  # Secure storage for credentials
+  flutter_secure_storage: ^9.2.4
+
+  # HTML rendering for LeetCode content
+  flutter_widget_from_html_core: ^0.15.2
+
+  # UI packages
+  shimmer: ^3.0.0
+  lottie: ^3.3.1
+  fl_chart: ^0.69.2
+  google_fonts: ^6.2.1
+  flutter_animate: ^4.5.2
+  cached_network_image: ^3.4.1
+  gap: ^3.0.1
+
+  # Code editor
+  flutter_code_editor: ^0.3.2
+  highlight: ^0.7.0
+
+  # Utilities
+  equatable: ^2.0.7
+  intl: ^0.19.0
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  injectable_generator: ^2.7.0
+  build_runner: ^2.4.13
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/
+    - assets/animations/
