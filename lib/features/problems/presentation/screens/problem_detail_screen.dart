@@ -10,6 +10,7 @@ import '../../../../injection.dart';
 import '../../../../shared/widgets/difficulty_badge.dart';
 import '../../../../shared/widgets/error_view.dart';
 import '../../../../shared/widgets/skeleton_loading.dart';
+import '../../data/models/problem_model.dart';
 import '../../domain/repositories/problems_repository.dart';
 import '../../../solutions/domain/repositories/solutions_repository.dart';
 import '../cubits/problem_detail_cubit.dart';
@@ -71,7 +72,7 @@ class _ProblemDetailBody extends StatelessWidget {
               ),
           },
           bottomNavigationBar: state is ProblemDetailLoaded
-              ? _StartCodingBar(slug: slug)
+              ? _StartCodingBar(slug: slug, problem: state.problem)
               : null,
         );
       },
@@ -258,8 +259,9 @@ class _HintsTabState extends State<_HintsTab> {
 
 class _StartCodingBar extends StatelessWidget {
   final String slug;
+  final Problem problem;
 
-  const _StartCodingBar({required this.slug});
+  const _StartCodingBar({required this.slug, required this.problem});
 
   @override
   Widget build(BuildContext context) {
@@ -275,7 +277,7 @@ class _StartCodingBar extends StatelessWidget {
         child: FilledButton(
           onPressed: () {
             HapticFeedback.lightImpact();
-            context.push('/problem/$slug/editor');
+            context.push('/problem/$slug/editor', extra: problem);
           },
           child: const Text('Start Coding'),
         ),

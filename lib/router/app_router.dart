@@ -4,6 +4,7 @@ import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/onboarding_screen.dart';
 import '../features/problems/presentation/screens/home_screen.dart';
 import '../features/problems/presentation/screens/problem_detail_screen.dart';
+import '../features/problems/data/models/problem_model.dart';
 import '../features/editor/presentation/screens/code_editor_screen.dart';
 import '../features/explore/presentation/screens/explore_screen.dart';
 import '../features/explore/presentation/screens/topic_problems_screen.dart';
@@ -75,6 +76,7 @@ final appRouter = GoRouter(
           parentNavigatorKey: _rootNavigatorKey,
           builder: (context, state) => CodeEditorScreen(
             slug: state.pathParameters['slug']!,
+            problem: state.extra as Problem?,
           ),
         ),
       ],

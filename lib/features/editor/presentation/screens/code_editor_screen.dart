@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -15,8 +16,9 @@ import '../cubits/judge_cubit.dart';
 
 class CodeEditorScreen extends StatefulWidget {
   final String slug;
+  final Problem? problem;
 
-  const CodeEditorScreen({super.key, required this.slug});
+  const CodeEditorScreen({super.key, required this.slug, this.problem});
 
   @override
   State<CodeEditorScreen> createState() => _CodeEditorScreenState();
@@ -25,21 +27,36 @@ class CodeEditorScreen extends StatefulWidget {
 class _CodeEditorScreenState extends State<CodeEditorScreen> {
   Problem? _problem;
   bool _loading = true;
-  final _codeController = TextEditingController();
+  late final TextEditingController _codeController;
 
   @override
   void initState() {
     super.initState();
-    _loadProblem();
+    if (widget.problem != null) {
+      _problem = widget.problem;
+      _loading = false;
+      // Pre-initialize controller with the first snippet code
+      final initialCode = _problem!.codeSnippets.isNotEmpty
+          ? _problem!.codeSnippets.first.code
+          : '';
+      _codeController = TextEditingController(text: initialCode);
+    } else {
+      _codeController = TextEditingController();
+      _loadProblem();
+    }
   }
 
   Future<void> _loadProblem() async {
     try {
       final problem = await sl<ProblemsRepository>().getProblemDetail(widget.slug);
       if (mounted) {
+        final initialCode = problem.codeSnippets.isNotEmpty
+            ? problem.codeSnippets.first.code
+            : '';
         setState(() {
           _problem = problem;
           _loading = false;
+          _codeController.text = initialCode;
         });
       }
     } catch (e) {
@@ -56,7 +73,12 @@ class _CodeEditorScreenState extends State<CodeEditorScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        appBar: AppBar(
+          leading: BackButton(onPressed: () => context.pop()),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
     }
     if (_problem == null) {
       return Scaffold(
@@ -89,6 +111,7 @@ class _EditorBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: BackButton(onPressed: () => context.pop()),
         title: Text(problem.title, overflow: TextOverflow.ellipsis),
         actions: [
           // Language selector
@@ -134,26 +157,33 @@ class _EditorBody extends StatelessWidget {
             flex: 3,
             child: BlocBuilder<CodeEditorCubit, CodeEditorState>(
               builder: (context, state) {
+                // Schedule text update after build to avoid setState-during-build.
+                // Only update if codes differ (language switch, reset, initial load).
                 if (codeController.text != state.code) {
-                  codeController.text = state.code;
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (codeController.text != state.code) {
+                      codeController.text = state.code;
+                    }
+                  });
                 }
-                return Container(
+                return ColoredBox(
                   color: AppColors.surface,
-                  padding: const EdgeInsets.all(AppSpacing.s),
-                  child: TextField(
-                    controller: codeController,
-                    maxLines: null,
-                    expands: true,
-                    style: AppTypography.code().copyWith(color: AppColors.textPrimary),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      fillColor: Colors.transparent,
-                      filled: true,
-                      contentPadding: EdgeInsets.all(AppSpacing.s),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(AppSpacing.s),
+                    child: TextField(
+                      controller: codeController,
+                      maxLines: null,
+                      style: AppTypography.code().copyWith(color: AppColors.textPrimary),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        fillColor: Colors.transparent,
+                        filled: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      onChanged: (code) {
+                        context.read<CodeEditorCubit>().updateCode(code);
+                      },
                     ),
-                    onChanged: (code) {
-                      context.read<CodeEditorCubit>().updateCode(code);
-                    },
                   ),
                 );
               },

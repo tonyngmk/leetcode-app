@@ -9,7 +9,7 @@ class Solution {
     return Solution(
       slug: json['slug'] as String? ?? '',
       approaches: (json['approaches'] as List?)
-              ?.map((a) => SolutionApproach.fromJson(a as Map<String, dynamic>))
+              ?.map((a) => SolutionApproach.fromJson(Map<String, dynamic>.from(a as Map)))
               .toList() ??
           [],
     );

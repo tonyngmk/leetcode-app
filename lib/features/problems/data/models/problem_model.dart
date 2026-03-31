@@ -56,7 +56,7 @@ class Problem {
       likes: (json['likes'] as num?)?.toInt() ?? 0,
       dislikes: (json['dislikes'] as num?)?.toInt() ?? 0,
       topicTags: (json['topicTags'] as List?)
-              ?.map((t) => TopicTag.fromJson(t as Map<String, dynamic>))
+              ?.map((t) => TopicTag.fromJson(Map<String, dynamic>.from(t as Map)))
               .toList() ??
           [],
       hints: (json['hints'] as List?)?.cast<String>() ?? [],
@@ -64,7 +64,7 @@ class Problem {
       exampleTestcases: json['exampleTestcases'] as String?,
       stats: json['stats'] as String?,
       codeSnippets: (json['codeSnippets'] as List?)
-              ?.map((s) => CodeSnippet.fromJson(s as Map<String, dynamic>))
+              ?.map((s) => CodeSnippet.fromJson(Map<String, dynamic>.from(s as Map)))
               .toList() ??
           [],
     );

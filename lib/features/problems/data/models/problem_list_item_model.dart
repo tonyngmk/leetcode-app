@@ -29,7 +29,7 @@ class ProblemListItem {
       acRate: (json['acRate'] as num).toDouble(),
       isPaidOnly: json['isPaidOnly'] as bool? ?? false,
       topicTags: (json['topicTags'] as List?)
-              ?.map((t) => TopicTag.fromJson(t as Map<String, dynamic>))
+              ?.map((t) => TopicTag.fromJson(Map<String, dynamic>.from(t as Map)))
               .toList() ??
           [],
     );
@@ -43,11 +43,11 @@ class ProblemListResponse {
   const ProblemListResponse({required this.total, required this.questions});
 
   factory ProblemListResponse.fromJson(Map<String, dynamic> json) {
-    final list = json['problemsetQuestionList'] as Map<String, dynamic>;
+    final list = Map<String, dynamic>.from(json['problemsetQuestionList'] as Map);
     return ProblemListResponse(
       total: list['total'] as int,
       questions: (list['questions'] as List)
-          .map((q) => ProblemListItem.fromJson(q as Map<String, dynamic>))
+          .map((q) => ProblemListItem.fromJson(Map<String, dynamic>.from(q as Map)))
           .toList(),
     );
   }
