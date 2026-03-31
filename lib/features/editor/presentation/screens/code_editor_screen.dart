@@ -9,7 +9,6 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../injection.dart';
 import '../../../problems/data/models/problem_model.dart';
-import '../../../problems/domain/repositories/problems_repository.dart';
 import '../../domain/repositories/judge_repository.dart';
 import '../cubits/code_editor_cubit.dart';
 import '../cubits/judge_cubit.dart';
@@ -25,43 +24,15 @@ class CodeEditorScreen extends StatefulWidget {
 }
 
 class _CodeEditorScreenState extends State<CodeEditorScreen> {
-  Problem? _problem;
-  bool _loading = true;
   late final TextEditingController _codeController;
 
   @override
   void initState() {
     super.initState();
-    if (widget.problem != null) {
-      _problem = widget.problem;
-      _loading = false;
-      // Pre-initialize controller with the first snippet code
-      final initialCode = _problem!.codeSnippets.isNotEmpty
-          ? _problem!.codeSnippets.first.code
-          : '';
-      _codeController = TextEditingController(text: initialCode);
-    } else {
-      _codeController = TextEditingController();
-      _loadProblem();
-    }
-  }
-
-  Future<void> _loadProblem() async {
-    try {
-      final problem = await sl<ProblemsRepository>().getProblemDetail(widget.slug);
-      if (mounted) {
-        final initialCode = problem.codeSnippets.isNotEmpty
-            ? problem.codeSnippets.first.code
-            : '';
-        setState(() {
-          _problem = problem;
-          _loading = false;
-          _codeController.text = initialCode;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _loading = false);
-    }
+    final initialCode = (widget.problem?.codeSnippets.isNotEmpty == true)
+        ? widget.problem!.codeSnippets.first.code
+        : '';
+    _codeController = TextEditingController(text: initialCode);
   }
 
   @override
@@ -72,17 +43,11 @@ class _CodeEditorScreenState extends State<CodeEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
+    if (widget.problem == null) {
       return Scaffold(
         appBar: AppBar(
           leading: BackButton(onPressed: () => context.pop()),
         ),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-    if (_problem == null) {
-      return Scaffold(
-        appBar: AppBar(),
         body: const Center(child: Text('Failed to load problem')),
       );
     }
@@ -90,209 +55,218 @@ class _CodeEditorScreenState extends State<CodeEditorScreen> {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) => CodeEditorCubit(snippets: _problem!.codeSnippets),
+          create: (_) => CodeEditorCubit(snippets: widget.problem!.codeSnippets),
         ),
         BlocProvider(
           create: (_) => JudgeCubit(repository: sl<JudgeRepository>()),
         ),
       ],
-      child: _EditorBody(problem: _problem!, codeController: _codeController),
+      child: _EditorBody(problem: widget.problem!, codeController: _codeController),
     );
   }
 }
 
-class _EditorBody extends StatelessWidget {
+class _EditorBody extends StatefulWidget {
   final Problem problem;
   final TextEditingController codeController;
 
   const _EditorBody({required this.problem, required this.codeController});
 
   @override
+  State<_EditorBody> createState() => _EditorBodyState();
+}
+
+class _EditorBodyState extends State<_EditorBody> {
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: BackButton(onPressed: () => context.pop()),
-        title: Text(problem.title, overflow: TextOverflow.ellipsis),
-        actions: [
-          // Language selector
-          BlocBuilder<CodeEditorCubit, CodeEditorState>(
-            builder: (context, state) {
-              return PopupMenuButton<String>(
-                initialValue: state.selectedLang,
-                onSelected: (lang) {
-                  context.read<CodeEditorCubit>().selectLanguage(lang);
-                },
-                itemBuilder: (context) {
-                  return state.snippets.map((s) {
-                    return PopupMenuItem(
-                      value: s.langSlug,
-                      child: Text(AppConstants.langSlugs[s.langSlug] ?? s.lang),
-                    );
-                  }).toList();
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        AppConstants.langSlugs[state.selectedLang] ?? state.selectedLang,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.primary,
-                            ),
-                      ),
-                      const Icon(Icons.arrow_drop_down, color: AppColors.primary, size: 18),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Code editor
-          Expanded(
-            flex: 3,
-            child: BlocBuilder<CodeEditorCubit, CodeEditorState>(
+    return BlocListener<CodeEditorCubit, CodeEditorState>(
+      listenWhen: (previous, current) => previous.code != current.code,
+      listener: (context, state) {
+        // Sync controller when language is switched or code is reset.
+        // This does not trigger a rebuild loop because the listener
+        // runs outside the build phase.
+        if (widget.codeController.text != state.code) {
+          widget.codeController.text = state.code;
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: BackButton(onPressed: () => context.pop()),
+          title: Text(widget.problem.title, overflow: TextOverflow.ellipsis),
+          actions: [
+            // Language selector: narrow BlocBuilder that rebuilds only on language change.
+            BlocBuilder<CodeEditorCubit, CodeEditorState>(
+              buildWhen: (previous, current) =>
+                  previous.selectedLang != current.selectedLang ||
+                  previous.snippets != current.snippets,
               builder: (context, state) {
-                // Schedule text update after build to avoid setState-during-build.
-                // Only update if codes differ (language switch, reset, initial load).
-                if (codeController.text != state.code) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (codeController.text != state.code) {
-                      codeController.text = state.code;
-                    }
-                  });
-                }
-                return ColoredBox(
-                  color: AppColors.surface,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(AppSpacing.s),
-                    child: TextField(
-                      controller: codeController,
-                      maxLines: null,
-                      style: AppTypography.code().copyWith(color: AppColors.textPrimary),
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        fillColor: Colors.transparent,
-                        filled: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      onChanged: (code) {
-                        context.read<CodeEditorCubit>().updateCode(code);
-                      },
+                return PopupMenuButton<String>(
+                  initialValue: state.selectedLang,
+                  onSelected: (lang) {
+                    context.read<CodeEditorCubit>().selectLanguage(lang);
+                  },
+                  itemBuilder: (context) {
+                    return state.snippets.map((s) {
+                      return PopupMenuItem(
+                        value: s.langSlug,
+                        child: Text(AppConstants.langSlugs[s.langSlug] ?? s.lang),
+                      );
+                    }).toList();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          AppConstants.langSlugs[state.selectedLang] ?? state.selectedLang,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.primary,
+                              ),
+                        ),
+                        const Icon(Icons.arrow_drop_down, color: AppColors.primary, size: 18),
+                      ],
                     ),
                   ),
                 );
               },
             ),
-          ),
-          // Divider with drag handle appearance
-          Container(
-            height: 4,
-            color: AppColors.divider,
-          ),
-          // Results panel
-          Expanded(
-            flex: 2,
-            child: BlocBuilder<JudgeCubit, JudgeState>(
-              builder: (context, state) {
-                return Container(
-                  color: AppColors.background,
-                  padding: const EdgeInsets.all(AppSpacing.m),
-                  child: switch (state) {
-                    JudgeIdle() => Center(
-                        child: Text(
-                          'Run or submit your code',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                        ),
-                      ),
-                    JudgeTesting() => const Center(child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircularProgressIndicator(),
-                          Gap(AppSpacing.s),
-                          Text('Running tests...'),
-                        ],
-                      )),
-                    JudgeSubmitting() => const Center(child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircularProgressIndicator(),
-                          Gap(AppSpacing.s),
-                          Text('Submitting...'),
-                        ],
-                      )),
-                    JudgeTestResult(:final result) || JudgeSubmitResult(:final result) =>
-                      _ResultView(result: result),
-                    JudgeError(:final message) => Center(
-                        child: Text(
-                          message,
-                          style: TextStyle(color: AppColors.hard),
-                        ),
-                      ),
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      // Action bar
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(AppSpacing.s),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.divider)),
+          ],
         ),
-        child: SafeArea(
-          child: Row(
-            children: [
-              // Reset
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                tooltip: 'Reset code',
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  context.read<CodeEditorCubit>().resetCode();
-                },
-              ),
-              const Spacer(),
-              // Run
-              FilledButton.icon(
-                icon: const Icon(Icons.play_arrow, size: 18),
-                label: const Text('Run'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.card,
-                  foregroundColor: AppColors.textPrimary,
+        body: Column(
+          children: [
+            // Code editor: TextField is completely outside BlocBuilder.
+            // It never rebuilds due to cubit changes during typing because
+            // we removed onChanged callback. This eliminates UI jank and
+            // platform channel thrashing on iOS.
+            Expanded(
+              flex: 3,
+              child: ColoredBox(
+                color: AppColors.surface,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(AppSpacing.s),
+                  child: TextField(
+                    controller: widget.codeController,
+                    maxLines: null,
+                    style: AppTypography.code().copyWith(color: AppColors.textPrimary),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      fillColor: Colors.transparent,
+                      filled: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    // Removed onChanged — code is captured from controller.text
+                    // at Run/Submit/Reset time, never continuously synced to cubit.
+                  ),
                 ),
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  final editorState = context.read<CodeEditorCubit>().state;
-                  context.read<JudgeCubit>().testSolution(
-                        slug: problem.titleSlug,
-                        questionId: problem.questionId ?? '',
-                        lang: editorState.selectedLang,
-                        code: editorState.code,
-                        dataInput: problem.exampleTestcases ?? '',
-                      );
+              ),
+            ),
+            // Divider with drag handle appearance
+            Container(
+              height: 4,
+              color: AppColors.divider,
+            ),
+            // Results panel
+            Expanded(
+              flex: 2,
+              child: BlocBuilder<JudgeCubit, JudgeState>(
+                builder: (context, state) {
+                  return Container(
+                    color: AppColors.background,
+                    padding: const EdgeInsets.all(AppSpacing.m),
+                    child: switch (state) {
+                      JudgeIdle() => Center(
+                          child: Text(
+                            'Run or submit your code',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                          ),
+                        ),
+                      JudgeTesting() => const Center(child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(),
+                            Gap(AppSpacing.s),
+                            Text('Running tests...'),
+                          ],
+                        )),
+                      JudgeSubmitting() => const Center(child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(),
+                            Gap(AppSpacing.s),
+                            Text('Submitting...'),
+                          ],
+                        )),
+                      JudgeTestResult(:final result) || JudgeSubmitResult(:final result) =>
+                        _ResultView(result: result),
+                      JudgeError(:final message) => Center(
+                          child: Text(
+                            message,
+                            style: TextStyle(color: AppColors.hard),
+                          ),
+                        ),
+                    },
+                  );
                 },
               ),
-              const Gap(AppSpacing.s),
-              // Submit
-              FilledButton.icon(
-                icon: const Icon(Icons.check, size: 18),
-                label: const Text('Submit'),
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  _showSubmitConfirmation(context);
-                },
-              ),
-            ],
+            ),
+          ],
+        ),
+        // Action bar
+        bottomNavigationBar: Container(
+          padding: const EdgeInsets.all(AppSpacing.s),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border(top: BorderSide(color: AppColors.divider)),
+          ),
+          child: SafeArea(
+            child: Row(
+              children: [
+                // Reset: triggers CodeEditorCubit.resetCode() which emits
+                // a new state. BlocListener fires and syncs controller.
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Reset code',
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    context.read<CodeEditorCubit>().resetCode();
+                  },
+                ),
+                const Spacer(),
+                // Run: reads code from controller directly at press time.
+                FilledButton.icon(
+                  icon: const Icon(Icons.play_arrow, size: 18),
+                  label: const Text('Run'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.card,
+                    foregroundColor: AppColors.textPrimary,
+                  ),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    final editorState = context.read<CodeEditorCubit>().state;
+                    context.read<JudgeCubit>().testSolution(
+                          slug: widget.problem.titleSlug,
+                          questionId: widget.problem.questionId ?? '',
+                          lang: editorState.selectedLang,
+                          code: widget.codeController.text,
+                          dataInput: widget.problem.exampleTestcases ?? '',
+                        );
+                  },
+                ),
+                const Gap(AppSpacing.s),
+                // Submit: shows confirmation dialog and reads code at that time.
+                FilledButton.icon(
+                  icon: const Icon(Icons.check, size: 18),
+                  label: const Text('Submit'),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    _showSubmitConfirmation(context);
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -300,6 +274,12 @@ class _EditorBody extends StatelessWidget {
   }
 
   void _showSubmitConfirmation(BuildContext context) {
+    // Capture code and language before dialog opens to avoid
+    // stale context issues if user navigates away or dialog
+    // is dismissed by system events.
+    final editorState = context.read<CodeEditorCubit>().state;
+    final currentCode = widget.codeController.text;
+
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -313,12 +293,11 @@ class _EditorBody extends StatelessWidget {
           FilledButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              final editorState = context.read<CodeEditorCubit>().state;
               context.read<JudgeCubit>().submitSolution(
-                    slug: problem.titleSlug,
-                    questionId: problem.questionId ?? '',
+                    slug: widget.problem.titleSlug,
+                    questionId: widget.problem.questionId ?? '',
                     lang: editorState.selectedLang,
-                    code: editorState.code,
+                    code: currentCode,
                   );
             },
             child: const Text('Submit'),

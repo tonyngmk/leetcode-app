@@ -73,7 +73,6 @@ final appRouter = GoRouter(
       routes: [
         GoRoute(
           path: 'editor',
-          parentNavigatorKey: _rootNavigatorKey,
           builder: (context, state) => CodeEditorScreen(
             slug: state.pathParameters['slug']!,
             problem: state.extra as Problem?,
