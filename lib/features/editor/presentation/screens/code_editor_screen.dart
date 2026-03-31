@@ -234,56 +234,74 @@ class _EditorBodyState extends State<_EditorBody> {
             border: Border(top: BorderSide(color: AppColors.divider)),
           ),
           child: SafeArea(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Reset: triggers CodeEditorCubit.resetCode() which emits
-                // a new state. BlocListener fires and syncs controller.
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'Reset code',
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    context.read<CodeEditorCubit>().resetCode();
-                  },
-                ),
-                // Run and Submit buttons in a nested Row to constrain their width
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Run: reads code from controller directly at press time.
-                    FilledButton.icon(
-                      icon: const Icon(Icons.play_arrow, size: 18),
-                      label: const Text('Run'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.card,
-                        foregroundColor: AppColors.textPrimary,
-                      ),
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        final editorState = context.read<CodeEditorCubit>().state;
-                        context.read<JudgeCubit>().testSolution(
-                              slug: widget.problem.titleSlug,
-                              questionId: widget.problem.questionId ?? '',
-                              lang: editorState.selectedLang,
-                              code: widget.codeController.text,
-                              dataInput: widget.problem.exampleTestcases ?? '',
-                            );
-                      },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Reset: triggers CodeEditorCubit.resetCode() which emits
+                  // a new state. BlocListener fires and syncs controller.
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'Reset code',
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      context.read<CodeEditorCubit>().resetCode();
+                    },
+                  ),
+                  // Run and Submit buttons with proper constraints
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Run: reads code from controller directly at press time.
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.card,
+                            foregroundColor: AppColors.textPrimary,
+                            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+                          ),
+                          onPressed: () {
+                            HapticFeedback.lightImpact();
+                            final editorState = context.read<CodeEditorCubit>().state;
+                            context.read<JudgeCubit>().testSolution(
+                                  slug: widget.problem.titleSlug,
+                                  questionId: widget.problem.questionId ?? '',
+                                  lang: editorState.selectedLang,
+                                  code: widget.codeController.text,
+                                  dataInput: widget.problem.exampleTestcases ?? '',
+                                );
+                          },
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.play_arrow, size: 18),
+                              Gap(4),
+                              Text('Run'),
+                            ],
+                          ),
+                        ),
+                        const Gap(AppSpacing.s),
+                        // Submit: shows confirmation dialog and reads code at that time.
+                        FilledButton(
+                          onPressed: () {
+                            HapticFeedback.lightImpact();
+                            _showSubmitConfirmation(context);
+                          },
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.check, size: 18),
+                              Gap(4),
+                              Text('Submit'),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const Gap(AppSpacing.s),
-                    // Submit: shows confirmation dialog and reads code at that time.
-                    FilledButton.icon(
-                      icon: const Icon(Icons.check, size: 18),
-                      label: const Text('Submit'),
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        _showSubmitConfirmation(context);
-                      },
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
