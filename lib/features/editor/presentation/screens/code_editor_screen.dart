@@ -237,10 +237,8 @@ class _EditorBodyState extends State<_EditorBody> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Reset: triggers CodeEditorCubit.resetCode() which emits
-                  // a new state. BlocListener fires and syncs controller.
+                  // Reset button (left-aligned)
                   IconButton(
                     icon: const Icon(Icons.refresh),
                     tooltip: 'Reset code',
@@ -249,12 +247,15 @@ class _EditorBodyState extends State<_EditorBody> {
                       context.read<CodeEditorCubit>().resetCode();
                     },
                   ),
-                  // Run and Submit buttons with proper constraints
-                  Flexible(
+                  // Spacer pushes the following content to the right
+                  const Spacer(),
+                  // Run and Submit buttons constrained to their intrinsic size
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 300),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Run: reads code from controller directly at press time.
+                        // Run button
                         FilledButton(
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.card,
@@ -282,7 +283,7 @@ class _EditorBodyState extends State<_EditorBody> {
                           ),
                         ),
                         const Gap(AppSpacing.s),
-                        // Submit: shows confirmation dialog and reads code at that time.
+                        // Submit button
                         FilledButton(
                           onPressed: () {
                             HapticFeedback.lightImpact();

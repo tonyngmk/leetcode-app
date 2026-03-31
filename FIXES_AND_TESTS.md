@@ -145,3 +145,98 @@ flutter test test/features/problems/data/models/problem_model_test.dart \
 | **Cached Data** | ❌ Broken | ✅ Fixed |
 
 The fix is minimal, focused, and thoroughly tested. It ensures the app gracefully handles both API responses and cached data from Hive.
+
+---
+
+# Bug Fix: FilledButton Infinite Width Constraint
+
+## Problem
+
+After "Start Coding" from a problem detail screen, the app freezes with:
+
+```
+BoxConstraints forces an infinite width.
+These invalid constraints were provided to RenderPhysicalShape's layout() function
+by the following function, which probably computed the invalid constraints in
+question: RenderConstrainedBox.performLayout
+The offending constraints were: BoxConstraints(w=Infinity, 48.0<=h<=823.0)
+The offending widget was: FilledButton
+```
+
+## Root Cause
+
+`FilledButton` defaults to expanding to fill available horizontal space. Even inside a `Row(mainAxisSize.min)`, the button's internal `ConstrainedBox(w=Infinity)` fails when the layout chain passes unbounded constraints. The original code also had `Flexible` wrapping the button `Row`, which compounded the problem.
+
+```dart
+// ORIGINAL — crashes
+Row(spaceBetween,
+  [IconButton,
+    Flexible(
+      child: Row(mainAxisSize: min,
+        children: [
+          FilledButton(  // expands infinitely → crashes
+            child: Row(mainAxisSize: min, [Icon, Text('Run')]),
+          ),
+          FilledButton(  // same
+            child: Row(mainAxisSize: min, [Icon, Text('Submit')]),
+          ),
+        ],
+      ),
+    ),
+  ],
+)
+```
+
+## Solution
+
+Two changes:
+1. **Remove `Flexible`** — unnecessary with `spaceBetween`
+2. **Wrap each `FilledButton`'s child `Row` with `IntrinsicWidth`** — forces the button to size to its content's intrinsic width, preventing infinite expansion
+
+```dart
+// FIXED
+Row(spaceBetween,
+  [IconButton,
+    Row(mainAxisSize: min,
+      children: [
+        FilledButton(
+          child: IntrinsicWidth(   // ← prevents infinite expansion
+            child: Row(mainAxisSize: min, [Icon, Gap, Text('Run')]),
+          ),
+        ),
+        Gap(s),
+        FilledButton(
+          child: IntrinsicWidth(   // ← prevents infinite expansion
+            child: Row(mainAxisSize: min, [Icon, Gap, Text('Submit')]),
+          ),
+        ),
+      ],
+    ),
+  ],
+)
+```
+
+`IntrinsicWidth` is required because `FilledButton` has an internal `ConstrainedBox(w=Infinity)` — this cannot be overridden via `styleFrom` (no `constraints` parameter exists). The only way to prevent the button from expanding infinitely is to wrap its content with `IntrinsicWidth`.
+
+## Files Changed
+
+- `lib/features/editor/presentation/screens/code_editor_screen.dart` — removed `Flexible` wrapper; added `IntrinsicWidth` around both FilledButton child Rows
+
+## Tests
+
+See `test/features/editor/presentation/screens/code_editor_screen_test.dart` — 6 widget tests including layout error detection.
+
+## Verification
+
+```bash
+flutter test   # 24/24 pass
+flutter analyze  # 0 issues
+```
+
+## Summary
+
+| | Before | After |
+|--|--------|-------|
+| **Constraint error** | ❌ Freezes on "Start Coding" | ✅ Layout succeeds |
+| **Button layout** | `Flexible` + unbounded button | `Flexible` removed + `IntrinsicWidth` |
+| **Test coverage** | No editor screen tests | ✅ 6 widget tests |
