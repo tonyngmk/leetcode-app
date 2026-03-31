@@ -16,6 +16,9 @@ import 'features/profile/data/datasources/profile_remote_datasource.dart';
 import 'features/profile/data/datasources/profile_local_datasource.dart';
 import 'features/profile/data/repositories/profile_repository_impl.dart';
 import 'features/profile/domain/repositories/profile_repository.dart';
+import 'features/settings/data/datasources/settings_local_datasource.dart';
+import 'features/settings/data/repositories/settings_repository_impl.dart';
+import 'features/settings/domain/repositories/settings_repository.dart';
 
 final sl = GetIt.instance;
 
@@ -23,8 +26,8 @@ Future<void> initDependencies() async {
   // Hive
   await Hive.initFlutter();
   final problemsBox = await Hive.openBox<Map>('problems');
-  final solutionsBox = await Hive.openBox<Map>('solutions');
   final userDataBox = await Hive.openBox<dynamic>('user_data');
+  final settingsBox = await Hive.openBox<dynamic>('settings');
 
   // Network
   final authInterceptor = AuthInterceptor();
@@ -41,7 +44,7 @@ Future<void> initDependencies() async {
     ProblemsLocalDataSource(box: problemsBox),
   );
   sl.registerSingleton<SolutionsLocalDataSource>(
-    SolutionsLocalDataSource(box: solutionsBox),
+    SolutionsLocalDataSource(),
   );
   sl.registerSingleton<JudgeRemoteDataSource>(
     JudgeRemoteDataSource(dioClient: dioClient),
@@ -71,5 +74,13 @@ Future<void> initDependencies() async {
       remote: sl(),
       local: sl(),
     ),
+  );
+
+  // Settings
+  sl.registerSingleton<SettingsLocalDataSource>(
+    SettingsLocalDataSource(box: settingsBox),
+  );
+  sl.registerSingleton<SettingsRepository>(
+    SettingsRepositoryImpl(localDataSource: sl()),
   );
 }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/network/auth_interceptor.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -16,8 +17,14 @@ import '../cubits/judge_cubit.dart';
 class CodeEditorScreen extends StatefulWidget {
   final String slug;
   final Problem? problem;
+  final String? initialCode;
 
-  const CodeEditorScreen({super.key, required this.slug, this.problem});
+  const CodeEditorScreen({
+    super.key,
+    required this.slug,
+    this.problem,
+    this.initialCode,
+  });
 
   @override
   State<CodeEditorScreen> createState() => _CodeEditorScreenState();
@@ -30,10 +37,11 @@ class _CodeEditorScreenState extends State<CodeEditorScreen> {
   void initState() {
     super.initState();
     debugPrint('[EDITOR] initState: problem=${widget.problem?.title}, snippets=${widget.problem?.codeSnippets.length}');
-    final initialCode = (widget.problem?.codeSnippets.isNotEmpty == true)
-        ? widget.problem!.codeSnippets.first.code
-        : '';
-    _codeController = TextEditingController(text: initialCode);
+    final code = widget.initialCode ??
+        (widget.problem?.codeSnippets.isNotEmpty == true
+            ? widget.problem!.codeSnippets.first.code
+            : '');
+    _codeController = TextEditingController(text: code);
     debugPrint('[EDITOR] initState complete, controller text length=${_codeController.text.length}');
   }
 
@@ -67,7 +75,10 @@ class _CodeEditorScreenState extends State<CodeEditorScreen> {
         BlocProvider(
           create: (_) {
             debugPrint('[EDITOR] creating JudgeCubit');
-            return JudgeCubit(repository: sl<JudgeRepository>());
+            return JudgeCubit(
+              repository: sl<JudgeRepository>(),
+              authInterceptor: sl<AuthInterceptor>(),
+            );
           },
         ),
       ],
@@ -155,11 +166,12 @@ class _EditorBodyState extends State<_EditorBody> {
               flex: 3,
               child: ColoredBox(
                 color: AppColors.surface,
-                child: SingleChildScrollView(
+                child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.s),
                   child: TextField(
                     controller: widget.codeController,
                     maxLines: null,
+                    expands: true,
                     style: AppTypography.code().copyWith(color: AppColors.textPrimary),
                     decoration: const InputDecoration(
                       border: InputBorder.none,
@@ -219,6 +231,38 @@ class _EditorBodyState extends State<_EditorBody> {
                             style: TextStyle(color: AppColors.hard),
                           ),
                         ),
+                      JudgeAuthError(:final message) => Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.m),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.lock_outline, color: AppColors.primary, size: 32),
+                                const Gap(AppSpacing.s),
+                                Text(
+                                  'Not Signed In',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                                const Gap(AppSpacing.xs),
+                                Text(
+                                  message,
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                ),
+                                const Gap(AppSpacing.m),
+                                FilledButton(
+                                  onPressed: () => context.push('/profile'),
+                                  child: const Text('Sign In'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                     },
                   );
                 },
@@ -238,7 +282,6 @@ class _EditorBodyState extends State<_EditorBody> {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s),
               child: Row(
                 children: [
-                  // Reset button (left-aligned)
                   IconButton(
                     icon: const Icon(Icons.refresh),
                     tooltip: 'Reset code',
@@ -247,20 +290,21 @@ class _EditorBodyState extends State<_EditorBody> {
                       context.read<CodeEditorCubit>().resetCode();
                     },
                   ),
-                  // Spacer pushes the following content to the right
                   const Spacer(),
-                  // Run and Submit buttons constrained to their intrinsic size
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 300),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Run button
-                        FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.card,
-                            foregroundColor: AppColors.textPrimary,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Run button — Container provides fill, OutlinedButton provides semantics & tap target
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+                        ),
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide.none,
                             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+                            minimumSize: const Size(0, 40),
                           ),
                           onPressed: () {
                             HapticFeedback.lightImpact();
@@ -276,15 +320,27 @@ class _EditorBodyState extends State<_EditorBody> {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.play_arrow, size: 18),
+                              Icon(Icons.play_arrow, size: 18, color: AppColors.textPrimary),
                               Gap(4),
-                              Text('Run'),
+                              Text('Run', style: TextStyle(color: AppColors.textPrimary)),
                             ],
                           ),
                         ),
-                        const Gap(AppSpacing.s),
-                        // Submit button
-                        FilledButton(
+                      ),
+                      const Gap(AppSpacing.s),
+                      // Submit button
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+                        ),
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide.none,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+                            minimumSize: const Size(0, 40),
+                          ),
                           onPressed: () {
                             HapticFeedback.lightImpact();
                             _showSubmitConfirmation(context);
@@ -298,8 +354,8 @@ class _EditorBodyState extends State<_EditorBody> {
                             ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -355,8 +411,7 @@ class _ResultView extends StatelessWidget {
     final isAccepted = result.isAccepted == true;
     final statusColor = isAccepted ? AppColors.easy : AppColors.hard;
 
-    return SingleChildScrollView(
-      child: Column(
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Status
@@ -428,7 +483,6 @@ class _ResultView extends StatelessWidget {
             ),
           ],
         ],
-      ),
-    );
+      );
   }
 }

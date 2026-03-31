@@ -27,7 +27,12 @@ class JudgeRemoteDataSource {
         'typed_code': code,
         'data_input': dataInput,
       },
-      options: Options(extra: {'requiresAuth': true}),
+      options: Options(
+        extra: {'requiresAuth': true},
+        // Submission endpoints can be slow — give LeetCode up to 60s.
+        sendTimeout: const Duration(seconds: 60),
+        receiveTimeout: const Duration(seconds: 60),
+      ),
     );
     return response.data!['interpret_id'] as String;
   }
@@ -47,7 +52,12 @@ class JudgeRemoteDataSource {
         'lang': lang,
         'typed_code': code,
       },
-      options: Options(extra: {'requiresAuth': true}),
+      options: Options(
+        extra: {'requiresAuth': true},
+        // Submission endpoints can be slow — give LeetCode up to 60s.
+        sendTimeout: const Duration(seconds: 60),
+        receiveTimeout: const Duration(seconds: 60),
+      ),
     );
     return response.data!['submission_id'] as int;
   }
@@ -58,7 +68,10 @@ class JudgeRemoteDataSource {
     for (var i = 0; i < AppConstants.maxPollAttempts; i++) {
       final response = await _dioClient.dio.get<Map<String, dynamic>>(
         '/submissions/detail/$submissionId/check/',
-        options: Options(extra: {'requiresAuth': true}),
+        options: Options(
+          extra: {'requiresAuth': true},
+          receiveTimeout: const Duration(seconds: 30),
+        ),
       );
       final result = SubmissionResult.fromJson(response.data!);
       if (!result.isPending) return result;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:algoflow/core/network/auth_interceptor.dart';
 import 'package:algoflow/features/problems/data/models/code_snippet_model.dart';
 import 'package:algoflow/features/problems/data/models/problem_model.dart';
 import 'package:algoflow/features/editor/domain/repositories/judge_repository.dart';
@@ -12,13 +13,17 @@ void main() {
   late List<CodeSnippet> snippets;
 
   setUpAll(() {
-    // Replace the real JudgeRepository with a no-op fake so the
-    // CodeEditorScreen can be instantiated without network dependencies.
     final getIt = GetIt.instance;
     if (getIt.isRegistered<JudgeRepository>()) {
       getIt.unregister<JudgeRepository>();
     }
     getIt.registerSingleton<JudgeRepository>(_FakeJudgeRepository());
+    // JudgeCubit now requires AuthInterceptor — register a stub so the
+    // screen can create the cubit without network dependencies.
+    if (getIt.isRegistered<AuthInterceptor>()) {
+      getIt.unregister<AuthInterceptor>();
+    }
+    getIt.registerSingleton<AuthInterceptor>(_FakeAuthInterceptor());
   });
 
   tearDownAll(() {
@@ -26,8 +31,9 @@ void main() {
     if (getIt.isRegistered<JudgeRepository>()) {
       getIt.unregister<JudgeRepository>();
     }
-    // Re-register the real one (not actually needed after tests, just cleanup)
-    // getIt.registerSingleton<JudgeRepository>(JudgeRepositoryImpl(remote: sl()));
+    if (getIt.isRegistered<AuthInterceptor>()) {
+      getIt.unregister<AuthInterceptor>();
+    }
   });
 
   setUp(() {
@@ -139,3 +145,6 @@ class _FakeJudgeRepository implements JudgeRepository {
     return const SubmissionResult(state: 'SUCCESS', statusCode: 10);
   }
 }
+
+/// Fake AuthInterceptor — always "authenticated", safe for widget tests.
+class _FakeAuthInterceptor extends AuthInterceptor {}

@@ -1,43 +1,47 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import '../models/solution_model.dart';
 
 /// Local data source for cached solutions.
-/// On first launch, loads from bundled asset (solution_cache.json.gz).
+///
+/// Loads solution cache lazily on-demand from bundled JSON asset.
+/// Does NOT load all 4054 problems at startup — only loads when accessed.
 class SolutionsLocalDataSource {
-  final Box<Map> _box;
+  Map<String, dynamic>? _cache;
+  bool _isLoading = false;
 
-  SolutionsLocalDataSource({required Box<Map> box}) : _box = box;
-
-  Solution? getSolution(String slug) {
-    final data = _box.get(slug);
-    if (data == null) return null;
-    return Solution.fromJson(Map<String, dynamic>.from(data));
-  }
-
-  bool hasSolution(String slug) => _box.containsKey(slug);
-
-  Future<void> saveSolution(String slug, Solution solution) async {
-    await _box.put(slug, solution.toJson());
-  }
-
-  bool get isLoaded => _box.isNotEmpty;
-
-  /// Loads all solutions from the bundled JSON asset into Hive.
-  /// Called on first launch only.
-  Future<void> loadFromAsset() async {
-    if (_box.isNotEmpty) return;
+  /// Lazily loads the asset and caches it in memory.
+  /// Called on first [getSolution] or [hasSolution] call.
+  Future<void> _ensureLoaded() async {
+    if (_cache != null || _isLoading) return;
+    _isLoading = true;
     try {
       final jsonStr = await rootBundle.loadString('assets/solution_cache.json');
-      final data = json.decode(jsonStr) as Map<String, dynamic>;
-      for (final entry in data.entries) {
-        final slug = entry.key;
-        final solutionData = entry.value as Map<String, dynamic>;
-        await _box.put(slug, solutionData);
-      }
-    } catch (_) {
-      // Asset not bundled yet — solutions will be empty until asset is added
+      _cache = json.decode(jsonStr) as Map<String, dynamic>;
+    } catch (e) {
+      // Asset not bundled yet — solutions will be unavailable
+      _cache = {};
+    } finally {
+      _isLoading = false;
     }
   }
+
+  Solution? getSolution(String slug) {
+    if (_cache == null) return null;
+    final data = _cache![slug] as Map<String, dynamic>?;
+    if (data == null) return null;
+    return Solution.fromJson(data);
+  }
+
+  Future<Solution?> getSolutionAsync(String slug) async {
+    await _ensureLoaded();
+    return getSolution(slug);
+  }
+
+  Future<bool> hasSolution(String slug) async {
+    await _ensureLoaded();
+    return _cache!.containsKey(slug);
+  }
+
+  bool get isLoaded => _cache != null;
 }

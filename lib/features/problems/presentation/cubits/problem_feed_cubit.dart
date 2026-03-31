@@ -17,6 +17,7 @@ class ProblemFeedLoaded extends ProblemFeedState {
   final String? activeTag;
   final DailyChallenge? dailyChallenge;
   final bool isLoadingMore;
+  final bool isFiltering;
 
   ProblemFeedLoaded({
     required this.problems,
@@ -26,6 +27,7 @@ class ProblemFeedLoaded extends ProblemFeedState {
     this.activeTag,
     this.dailyChallenge,
     this.isLoadingMore = false,
+    this.isFiltering = false,
   });
 
   ProblemFeedLoaded copyWith({
@@ -36,6 +38,7 @@ class ProblemFeedLoaded extends ProblemFeedState {
     String? Function()? activeTag,
     DailyChallenge? dailyChallenge,
     bool? isLoadingMore,
+    bool? isFiltering,
   }) {
     return ProblemFeedLoaded(
       problems: problems ?? this.problems,
@@ -45,6 +48,7 @@ class ProblemFeedLoaded extends ProblemFeedState {
       activeTag: activeTag != null ? activeTag() : this.activeTag,
       dailyChallenge: dailyChallenge ?? this.dailyChallenge,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      isFiltering: isFiltering ?? this.isFiltering,
     );
   }
 }
@@ -86,11 +90,17 @@ class ProblemFeedCubit extends Cubit<ProblemFeedState> {
   Future<void> filterByDifficulty(String? difficulty) async {
     final current = state;
     if (current is! ProblemFeedLoaded) return;
-    emit(ProblemFeedLoading());
+    String? currentTag;
+    DailyChallenge? currentDaily;
+
+    currentTag = current.activeTag;
+    currentDaily = current.dailyChallenge;
+
+    emit(current.copyWith(isFiltering: true, activeDifficulty: () => difficulty));
     try {
       final response = await _repository.getProblems(
         difficulty: difficulty,
-        tags: current.activeTag != null ? [current.activeTag!] : null,
+        tags: currentTag != null ? [currentTag] : null,
         limit: _pageSize,
         skip: 0,
       );
@@ -98,21 +108,37 @@ class ProblemFeedCubit extends Cubit<ProblemFeedState> {
         problems: response.questions,
         total: response.total,
         activeDifficulty: difficulty,
-        activeTag: current.activeTag,
-        dailyChallenge: current.dailyChallenge,
+        activeTag: currentTag,
+        dailyChallenge: currentDaily,
       ));
     } catch (e) {
-      emit(ProblemFeedError(e.toString()));
+      emit(ProblemFeedLoaded(
+        problems: current.problems,
+        total: current.total,
+        activeDifficulty: current.activeDifficulty,
+        activeTag: currentTag,
+        dailyChallenge: currentDaily,
+        isFiltering: false,
+      ));
     }
   }
 
   Future<void> filterByTag(String? tag) async {
     final current = state;
-    if (current is! ProblemFeedLoaded) return;
-    emit(ProblemFeedLoading());
+    String? currentDifficulty;
+    DailyChallenge? currentDaily;
+
+    if (current is ProblemFeedLoaded) {
+      currentDifficulty = current.activeDifficulty;
+      currentDaily = current.dailyChallenge;
+    }
+
+    if (current is ProblemFeedLoaded) {
+      emit(current.copyWith(isFiltering: true, activeTag: () => tag));
+    }
     try {
       final response = await _repository.getProblems(
-        difficulty: current.activeDifficulty,
+        difficulty: currentDifficulty,
         tags: tag != null ? [tag] : null,
         limit: _pageSize,
         skip: 0,
@@ -120,12 +146,16 @@ class ProblemFeedCubit extends Cubit<ProblemFeedState> {
       emit(ProblemFeedLoaded(
         problems: response.questions,
         total: response.total,
-        activeDifficulty: current.activeDifficulty,
+        activeDifficulty: currentDifficulty,
         activeTag: tag,
-        dailyChallenge: current.dailyChallenge,
+        dailyChallenge: currentDaily,
       ));
     } catch (e) {
-      emit(ProblemFeedError(e.toString()));
+      if (current is ProblemFeedLoaded) {
+        emit(current.copyWith(isFiltering: false));
+      } else {
+        emit(ProblemFeedError(e.toString()));
+      }
     }
   }
 

@@ -43,8 +43,12 @@ class ProblemDetailCubit extends Cubit<ProblemDetailState> {
   Future<void> load(String slug) async {
     emit(ProblemDetailLoading());
     try {
-      final problem = await _problemsRepo.getProblemDetail(slug);
-      final solution = _solutionsRepo.getSolution(slug);
+      // Load solution cache and problem detail in parallel
+      final solutionFuture = _solutionsRepo.getSolutionAsync(slug);
+      final problemFuture = _problemsRepo.getProblemDetail(slug);
+
+      final problem = await problemFuture;
+      final solution = await solutionFuture;
 
       // Try to get solve status (requires auth, may fail silently)
       String? status;

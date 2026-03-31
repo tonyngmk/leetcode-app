@@ -165,62 +165,50 @@ The offending widget was: FilledButton
 
 ## Root Cause
 
-`FilledButton` defaults to expanding to fill available horizontal space. Even inside a `Row(mainAxisSize.min)`, the button's internal `ConstrainedBox(w=Infinity)` fails when the layout chain passes unbounded constraints. The original code also had `Flexible` wrapping the button `Row`, which compounded the problem.
+`FilledButton`'s internal `Material` widget uses `RenderPhysicalShape` with `clipBehavior: antiAlias`. When `FilledButton` receives unbounded width constraints from the parent layout (e.g., from `Spacer()` in a `Row(spaceBetween)`), the `Material` widget tries to expand to fill available space and `RenderPhysicalShape.performLayout` throws. The `Spacer` → outer `Row` → inner `Row(mainAxisSize.min)` → `FilledButton` chain passes `w=Infinity` down.
 
-```dart
-// ORIGINAL — crashes
-Row(spaceBetween,
-  [IconButton,
-    Flexible(
-      child: Row(mainAxisSize: min,
-        children: [
-          FilledButton(  // expands infinitely → crashes
-            child: Row(mainAxisSize: min, [Icon, Text('Run')]),
-          ),
-          FilledButton(  // same
-            child: Row(mainAxisSize: min, [Icon, Text('Submit')]),
-          ),
-        ],
-      ),
-    ),
-  ],
-)
-```
+Previous attempted fixes:
+- **Remove `Flexible`** — `FilledButton` still expands with `Spacer` giving unbounded width
+- **`maximumSize: Size.square(N)`** — causes non-normalized constraints (`minWidth=Infinity, maxWidth=N`)
+- **`IntrinsicWidth` wrapping** — `FilledButton.getMaxIntrinsicWidth` returns `Infinity` (it doesn't apply internal `ConstrainedBox` during intrinsic measurement), so `IntrinsicWidth` passes `w=Infinity` down anyway
 
 ## Solution
 
-Two changes:
-1. **Remove `Flexible`** — unnecessary with `spaceBetween`
-2. **Wrap each `FilledButton`'s child `Row` with `IntrinsicWidth`** — forces the button to size to its content's intrinsic width, preventing infinite expansion
+Replace `FilledButton` with a `Container` + `OutlinedButton` composition:
 
 ```dart
-// FIXED
-Row(spaceBetween,
-  [IconButton,
-    Row(mainAxisSize: min,
-      children: [
-        FilledButton(
-          child: IntrinsicWidth(   // ← prevents infinite expansion
-            child: Row(mainAxisSize: min, [Icon, Gap, Text('Run')]),
-          ),
-        ),
-        Gap(s),
-        FilledButton(
-          child: IntrinsicWidth(   // ← prevents infinite expansion
-            child: Row(mainAxisSize: min, [Icon, Gap, Text('Submit')]),
-          ),
-        ),
-      ],
+// Run button — Container provides fill, OutlinedButton provides semantics & tap target
+Container(
+  decoration: BoxDecoration(
+    color: AppColors.card,
+    borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+  ),
+  child: OutlinedButton(
+    style: OutlinedButton.styleFrom(
+      side: BorderSide.none,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+      minimumSize: const Size(0, 40),
     ),
-  ],
-)
+    onPressed: () { ... },
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [Icon(Icons.play_arrow), Gap(4), Text('Run')],
+    ),
+  ),
+),
 ```
 
-`IntrinsicWidth` is required because `FilledButton` has an internal `ConstrainedBox(w=Infinity)` — this cannot be overridden via `styleFrom` (no `constraints` parameter exists). The only way to prevent the button from expanding infinitely is to wrap its content with `IntrinsicWidth`.
+**Why this works:** `Container` provides the visual fill and rounded corners. `OutlinedButton` with `side: BorderSide.none` has a transparent `Material` background — it naturally sizes to its content rather than expanding to fill available space, even when it receives `w=Infinity`. The `minimumSize: Size(0, 40)` ensures proper minimum touch target height.
+
+## Additional Fixes
+
+**Code editor TextField:** `SingleChildScrollView(maxLines: null)` causes intrinsic height measurement failures on interaction. Fixed by replacing with `TextField(expands: true)` (natively scrollable, fills `Expanded` space without needing an outer scroll view).
+
+**Results panel `_ResultView`:** Redundant `SingleChildScrollView` inside `Expanded` removed — `Expanded` already provides bounded height.
 
 ## Files Changed
 
-- `lib/features/editor/presentation/screens/code_editor_screen.dart` — removed `Flexible` wrapper; added `IntrinsicWidth` around both FilledButton child Rows
+- `lib/features/editor/presentation/screens/code_editor_screen.dart` — `FilledButton` → `Container`+`OutlinedButton`; `SingleChildScrollView`+`maxLines:null` → `TextField.expands:true`; `_ResultView` `SingleChildScrollView` removed
 
 ## Tests
 
@@ -238,5 +226,6 @@ flutter analyze  # 0 issues
 | | Before | After |
 |--|--------|-------|
 | **Constraint error** | ❌ Freezes on "Start Coding" | ✅ Layout succeeds |
-| **Button layout** | `Flexible` + unbounded button | `Flexible` removed + `IntrinsicWidth` |
+| **Button type** | `FilledButton` (crashes on `w=Infinity`) | `Container` + `OutlinedButton` |
+| **Code editor** | `SingleChildScrollView` + `maxLines:null` | `TextField.expands:true` |
 | **Test coverage** | No editor screen tests | ✅ 6 widget tests |

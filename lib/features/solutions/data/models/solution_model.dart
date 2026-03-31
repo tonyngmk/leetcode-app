@@ -1,5 +1,7 @@
 /// Solution with multiple approaches — mirrors solution_cache.json structure.
 class Solution {
+  static const supportedLanguages = ['python', 'java', 'cpp', 'javascript', 'go'];
+
   final String slug;
   final List<SolutionApproach> approaches;
 
@@ -41,7 +43,10 @@ class SolutionApproach {
     final rawCode = json['code'];
     if (rawCode is Map) {
       for (final entry in rawCode.entries) {
-        codeMap[entry.key as String] = entry.value as String;
+        final val = entry.value;
+        if (val is String) {
+          codeMap[entry.key as String] = val;
+        }
       }
     }
     return SolutionApproach(

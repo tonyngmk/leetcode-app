@@ -76,6 +76,10 @@ class _HomeBodyState extends State<_HomeBody> {
                   ),
                   actions: [
                     IconButton(
+                      icon: const Icon(Icons.search),
+                      onPressed: () => context.go('/search'),
+                    ),
+                    IconButton(
                       icon: const Icon(Icons.notifications_outlined),
                       onPressed: () {},
                     ),
@@ -96,6 +100,8 @@ class _HomeBodyState extends State<_HomeBody> {
                       child: SkeletonLoading(height: 120),
                     ),
                   ),
+                // Gap between daily challenge and filter chips
+                const SliverToBoxAdapter(child: Gap(AppSpacing.m)),
                 // Filter chips
                 SliverToBoxAdapter(
                   child: ProblemFilterChips(
@@ -137,6 +143,22 @@ class _HomeBodyState extends State<_HomeBody> {
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
+                        if (state.isFiltering && index == 0) {
+                          return Column(
+                            children: [
+                              LinearProgressIndicator(
+                                backgroundColor: AppColors.surface,
+                                color: AppColors.primary,
+                                minHeight: 2,
+                              ),
+                              if (state.problems.isEmpty)
+                                const Padding(
+                                  padding: EdgeInsets.all(AppSpacing.l),
+                                  child: Center(child: CircularProgressIndicator()),
+                                ),
+                            ],
+                          );
+                        }
                         if (index < state.problems.length) {
                           return ProblemListTile(problem: state.problems[index]);
                         }
@@ -148,7 +170,9 @@ class _HomeBodyState extends State<_HomeBody> {
                         }
                         return null;
                       },
-                      childCount: state.problems.length + (state.isLoadingMore ? 1 : 0),
+                      childCount: state.problems.isEmpty && state.isFiltering
+                          ? 1
+                          : state.problems.length + (state.isLoadingMore ? 1 : 0),
                     ),
                   ),
               ],
@@ -181,30 +205,90 @@ class _DifficultyFilters extends StatelessWidget {
 
   const _DifficultyFilters({this.active});
 
+  static const _difficulties = [
+    ('Easy', Colors.green, Icons.circle),
+    ('Medium', Colors.orange, Icons.circle),
+    ('Hard', Colors.red, Icons.circle),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: AppSpacing.s,
+    return Row(
       children: [
-        for (final diff in ['Easy', 'Medium', 'Hard'])
-          ChoiceChip(
-            label: Text(diff),
-            selected: active == diff,
-            selectedColor: AppColors.difficultyColor(diff).withValues(alpha: 0.2),
-            labelStyle: TextStyle(
-              color: active == diff
-                  ? AppColors.difficultyColor(diff)
-                  : AppColors.textSecondary,
-              fontWeight: active == diff ? FontWeight.w600 : FontWeight.w400,
-              fontSize: 12,
+        for (final (diff, color, _) in _difficulties)
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+              ),
+              child: _DifficultyButton(
+                label: diff,
+                color: color,
+                isSelected: active == diff,
+                onSelected: (selected) {
+                  context.read<ProblemFeedCubit>().filterByDifficulty(
+                        selected ? diff : null,
+                      );
+                },
+              ),
             ),
-            onSelected: (selected) {
-              context.read<ProblemFeedCubit>().filterByDifficulty(
-                    selected ? diff : null,
-                  );
-            },
           ),
       ],
+    );
+  }
+}
+
+class _DifficultyButton extends StatelessWidget {
+  final String label;
+  final Color color;
+  final bool isSelected;
+  final ValueChanged<bool> onSelected;
+
+  const _DifficultyButton({
+    required this.label,
+    required this.color,
+    required this.isSelected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => onSelected(!isSelected),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(
+          vertical: AppSpacing.s,
+          horizontal: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.15) : AppColors.card,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+          border: Border.all(
+            color: isSelected ? color : AppColors.divider,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.circle,
+              size: 10,
+              color: isSelected ? color : AppColors.textSecondary,
+            ),
+            const Gap(6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? color : AppColors.textSecondary,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

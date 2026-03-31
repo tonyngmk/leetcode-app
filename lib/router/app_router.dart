@@ -10,6 +10,7 @@ import '../features/explore/presentation/screens/explore_screen.dart';
 import '../features/explore/presentation/screens/topic_problems_screen.dart';
 import '../features/search/presentation/screens/search_screen.dart';
 import '../features/profile/presentation/screens/profile_screen.dart';
+import '../features/settings/presentation/screens/settings_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -75,12 +76,25 @@ final appRouter = GoRouter(
           path: 'editor',
           builder: (context, state) {
             final slug = state.pathParameters['slug']!;
-            final problem = state.extra as Problem?;
-            debugPrint('[ROUTER] editor route builder: slug=$slug, problem=${problem?.title}, extra is Problem: ${state.extra is Problem}');
-            return CodeEditorScreen(slug: slug, problem: problem);
+            final extra = state.extra;
+            Problem? problem;
+            String? initialCode;
+            if (extra is Problem) {
+              problem = extra;
+            } else if (extra is Map) {
+              problem = extra['problem'] as Problem?;
+              initialCode = extra['initialCode'] as String?;
+            }
+            debugPrint('[ROUTER] editor route builder: slug=$slug, problem=${problem?.title}, hasInitialCode=${initialCode != null}');
+            return CodeEditorScreen(slug: slug, problem: problem, initialCode: initialCode);
           },
         ),
       ],
+    ),
+    GoRoute(
+      path: '/settings',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const SettingsScreen(),
     ),
   ],
 );

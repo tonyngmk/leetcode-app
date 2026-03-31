@@ -135,7 +135,7 @@ class _LoadedContent extends StatelessWidget {
               children: [
                 _DescriptionTab(content: problem.content ?? ''),
                 _HintsTab(hints: problem.hints),
-                if (solution != null) SolutionTabView(solution: solution),
+                if (solution != null) SolutionTabView(solution: solution, problem: problem),
               ],
             ),
           ),
