@@ -235,6 +235,7 @@ class _EditorBodyState extends State<_EditorBody> {
           ),
           child: SafeArea(
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // Reset: triggers CodeEditorCubit.resetCode() which emits
                 // a new state. BlocListener fires and syncs controller.
@@ -246,7 +247,6 @@ class _EditorBodyState extends State<_EditorBody> {
                     context.read<CodeEditorCubit>().resetCode();
                   },
                 ),
-                const Spacer(),
                 // Run and Submit buttons in a nested Row to constrain their width
                 Row(
                   mainAxisSize: MainAxisSize.min,
