@@ -73,10 +73,12 @@ final appRouter = GoRouter(
       routes: [
         GoRoute(
           path: 'editor',
-          builder: (context, state) => CodeEditorScreen(
-            slug: state.pathParameters['slug']!,
-            problem: state.extra as Problem?,
-          ),
+          builder: (context, state) {
+            final slug = state.pathParameters['slug']!;
+            final problem = state.extra as Problem?;
+            debugPrint('[ROUTER] editor route builder: slug=$slug, problem=${problem?.title}, extra is Problem: ${state.extra is Problem}');
+            return CodeEditorScreen(slug: slug, problem: problem);
+          },
         ),
       ],
     ),

@@ -276,8 +276,11 @@ class _StartCodingBar extends StatelessWidget {
       child: SafeArea(
         child: FilledButton(
           onPressed: () {
+            debugPrint('[START_CODING] button pressed, slug=$slug, problem=${problem.title}, codeSnippets=${problem.codeSnippets.length}');
             HapticFeedback.lightImpact();
+            debugPrint('[START_CODING] calling context.push with extra');
             context.push('/problem/$slug/editor', extra: problem);
+            debugPrint('[START_CODING] context.push returned');
           },
           child: const Text('Start Coding'),
         ),

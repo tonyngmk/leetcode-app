@@ -29,10 +29,12 @@ class _CodeEditorScreenState extends State<CodeEditorScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('[EDITOR] initState: problem=${widget.problem?.title}, snippets=${widget.problem?.codeSnippets.length}');
     final initialCode = (widget.problem?.codeSnippets.isNotEmpty == true)
         ? widget.problem!.codeSnippets.first.code
         : '';
     _codeController = TextEditingController(text: initialCode);
+    debugPrint('[EDITOR] initState complete, controller text length=${_codeController.text.length}');
   }
 
   @override
@@ -43,6 +45,7 @@ class _CodeEditorScreenState extends State<CodeEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('[EDITOR] build called, problem=${widget.problem?.title}');
     if (widget.problem == null) {
       return Scaffold(
         appBar: AppBar(
@@ -52,13 +55,20 @@ class _CodeEditorScreenState extends State<CodeEditorScreen> {
       );
     }
 
+    debugPrint('[EDITOR] creating MultiBlocProvider');
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) => CodeEditorCubit(snippets: widget.problem!.codeSnippets),
+          create: (_) {
+            debugPrint('[EDITOR] creating CodeEditorCubit');
+            return CodeEditorCubit(snippets: widget.problem!.codeSnippets);
+          },
         ),
         BlocProvider(
-          create: (_) => JudgeCubit(repository: sl<JudgeRepository>()),
+          create: (_) {
+            debugPrint('[EDITOR] creating JudgeCubit');
+            return JudgeCubit(repository: sl<JudgeRepository>());
+          },
         ),
       ],
       child: _EditorBody(problem: widget.problem!, codeController: _codeController),
@@ -79,9 +89,11 @@ class _EditorBody extends StatefulWidget {
 class _EditorBodyState extends State<_EditorBody> {
   @override
   Widget build(BuildContext context) {
+    debugPrint('[EDITOR_BODY] build called');
     return BlocListener<CodeEditorCubit, CodeEditorState>(
       listenWhen: (previous, current) => previous.code != current.code,
       listener: (context, state) {
+        debugPrint('[EDITOR_BODY] BlocListener fired');
         // Sync controller when language is switched or code is reset.
         // This does not trigger a rebuild loop because the listener
         // runs outside the build phase.
@@ -235,35 +247,41 @@ class _EditorBodyState extends State<_EditorBody> {
                   },
                 ),
                 const Spacer(),
-                // Run: reads code from controller directly at press time.
-                FilledButton.icon(
-                  icon: const Icon(Icons.play_arrow, size: 18),
-                  label: const Text('Run'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.card,
-                    foregroundColor: AppColors.textPrimary,
-                  ),
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    final editorState = context.read<CodeEditorCubit>().state;
-                    context.read<JudgeCubit>().testSolution(
-                          slug: widget.problem.titleSlug,
-                          questionId: widget.problem.questionId ?? '',
-                          lang: editorState.selectedLang,
-                          code: widget.codeController.text,
-                          dataInput: widget.problem.exampleTestcases ?? '',
-                        );
-                  },
-                ),
-                const Gap(AppSpacing.s),
-                // Submit: shows confirmation dialog and reads code at that time.
-                FilledButton.icon(
-                  icon: const Icon(Icons.check, size: 18),
-                  label: const Text('Submit'),
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    _showSubmitConfirmation(context);
-                  },
+                // Run and Submit buttons in a nested Row to constrain their width
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Run: reads code from controller directly at press time.
+                    FilledButton.icon(
+                      icon: const Icon(Icons.play_arrow, size: 18),
+                      label: const Text('Run'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.card,
+                        foregroundColor: AppColors.textPrimary,
+                      ),
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        final editorState = context.read<CodeEditorCubit>().state;
+                        context.read<JudgeCubit>().testSolution(
+                              slug: widget.problem.titleSlug,
+                              questionId: widget.problem.questionId ?? '',
+                              lang: editorState.selectedLang,
+                              code: widget.codeController.text,
+                              dataInput: widget.problem.exampleTestcases ?? '',
+                            );
+                      },
+                    ),
+                    const Gap(AppSpacing.s),
+                    // Submit: shows confirmation dialog and reads code at that time.
+                    FilledButton.icon(
+                      icon: const Icon(Icons.check, size: 18),
+                      label: const Text('Submit'),
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        _showSubmitConfirmation(context);
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
