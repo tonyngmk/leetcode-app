@@ -1,0 +1,14 @@
+name: algoflow_visualization_generator
+description: "CLI tool to generate algorithm visualization steps using Claude API"
+publish_to: 'none'
+version: 1.0.0
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  http: ^1.1.0
+  args: ^2.4.2
+
+dev_dependencies:
+  lints: ^3.0.0

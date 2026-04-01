@@ -7,6 +7,9 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../problems/data/models/problem_model.dart';
 import '../../../solutions/data/models/solution_model.dart';
+import '../../../../injection.dart';
+import '../../../visualizer/domain/repositories/visualization_repository.dart';
+import '../../../visualizer/presentation/widgets/visualization_panel.dart';
 
 const _langDisplayNames = {
   'python': 'Python',
@@ -33,6 +36,8 @@ class _SolutionTabViewState extends State<SolutionTabView> {
   String _selectedLang = 'python';
   bool _spoilerRevealed = false;
   double _spoilerOpacity = 1.0;
+  bool _visualizerExpanded = false;
+  bool _hasVisualization = false;
 
   @override
   void initState() {
@@ -44,6 +49,12 @@ class _SolutionTabViewState extends State<SolutionTabView> {
         _selectedLang = langs.first;
       }
     }
+    // Async check — widget rebuilds once result is known.
+    sl<VisualizationRepository>()
+        .hasVisualization(widget.problem.titleSlug)
+        .then((has) {
+      if (mounted) setState(() => _hasVisualization = has);
+    });
   }
 
   void _revealSpoiler() {
@@ -116,6 +127,82 @@ class _SolutionTabViewState extends State<SolutionTabView> {
                   ),
                 );
               },
+            ),
+          ),
+        // Visualize toggle — shown for any problem with visualisation data
+        if (_hasVisualization)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.m,
+              vertical: AppSpacing.xs,
+            ),
+            child: GestureDetector(
+              onTap: () =>
+                  setState(() => _visualizerExpanded = !_visualizerExpanded),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.m,
+                  vertical: AppSpacing.s,
+                ),
+                decoration: BoxDecoration(
+                  color: _visualizerExpanded
+                      ? AppColors.primary.withValues(alpha: 0.15)
+                      : AppColors.card,
+                  borderRadius:
+                      BorderRadius.circular(AppSpacing.radiusSmall),
+                  border: Border.all(
+                    color: _visualizerExpanded
+                        ? AppColors.primary
+                        : AppColors.divider,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _visualizerExpanded
+                          ? Icons.visibility_off_outlined
+                          : Icons.play_circle_outline,
+                      size: 16,
+                      color: _visualizerExpanded
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                    ),
+                    const Gap(AppSpacing.xs),
+                    Text(
+                      _visualizerExpanded
+                          ? 'Hide Visualizer'
+                          : 'Visualize',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                            color: _visualizerExpanded
+                                ? AppColors.primary
+                                : AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        // Collapsible visualization panel
+        if (_hasVisualization && _visualizerExpanded)
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.m,
+                vertical: AppSpacing.xs,
+              ),
+              child: VisualizationPanel(
+                slug: widget.problem.titleSlug,
+                approachIndex: _selectedApproach,
+                repository: sl<VisualizationRepository>(),
+              ),
             ),
           ),
         // Spoiler gate

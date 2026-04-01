@@ -19,6 +19,9 @@ import 'features/profile/domain/repositories/profile_repository.dart';
 import 'features/settings/data/datasources/settings_local_datasource.dart';
 import 'features/settings/data/repositories/settings_repository_impl.dart';
 import 'features/settings/domain/repositories/settings_repository.dart';
+import 'features/visualizer/data/datasources/visualization_local_datasource.dart';
+import 'features/visualizer/data/repositories/visualization_repository_impl.dart';
+import 'features/visualizer/domain/repositories/visualization_repository.dart';
 
 final sl = GetIt.instance;
 
@@ -82,5 +85,13 @@ Future<void> initDependencies() async {
   );
   sl.registerSingleton<SettingsRepository>(
     SettingsRepositoryImpl(localDataSource: sl()),
+  );
+
+  // Visualizer
+  sl.registerSingleton<VisualizationLocalDataSource>(
+    VisualizationLocalDataSource(),
+  );
+  sl.registerSingleton<VisualizationRepository>(
+    VisualizationRepositoryImpl(local: sl()),
   );
 }

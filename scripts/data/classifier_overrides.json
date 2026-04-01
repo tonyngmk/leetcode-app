@@ -1,0 +1,14 @@
+{
+  "trapping-rain-water": "two_pointer",
+  "container-with-most-water": "two_pointer",
+  "3sum": "two_pointer",
+  "3sum-closest": "two_pointer",
+  "merge-intervals": "array_basic",
+  "insert-interval": "array_basic",
+  "product-of-array-except-self": "prefix_sum",
+  "range-sum-query-immutable": "prefix_sum",
+  "subarray-sum-equals-k": "hash_map",
+  "longest-substring-without-repeating-characters": "sliding_window",
+  "minimum-window-substring": "sliding_window",
+  "find-the-duplicate-number": "two_pointer"
+}

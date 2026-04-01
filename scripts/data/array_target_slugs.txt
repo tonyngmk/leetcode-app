@@ -1,0 +1,74 @@
+# Top 50 most common LeetCode array problems
+# Used by generation pipeline to prioritize which problems get visualizations
+
+# Two Sum variants
+two-sum
+two-sum-ii-input-array-is-sorted
+two-sum-less-than-k
+
+# Basic array operations
+contains-duplicate
+valid-anagram
+best-time-to-buy-and-sell-stock
+best-time-to-buy-and-sell-stock-ii
+rotate-array
+duplicate-zeros
+move-zeroes
+
+# Subarrays
+maximum-subarray
+maximum-product-subarray
+subarray-sum-equals-k
+maximum-length-of-subarray-with-positive-product
+shortest-subarray-with-sum-at-least-k
+
+# Search and sort
+search-insert-position
+find-minimum-in-rotated-sorted-array
+search-in-rotated-sorted-array
+median-of-two-sorted-arrays
+
+# Multi-array operations
+merge-sorted-array
+intersection-of-two-arrays
+intersection-of-two-arrays-ii
+
+# Pointer and sliding window
+3sum
+3sum-closest
+container-with-most-water
+trapping-rain-water
+remove-duplicates-from-sorted-array
+remove-element
+next-permutation
+sort-colors
+
+# Prefix/product operations
+product-of-array-except-self
+prefix-and-suffix-search
+range-sum-query-immutable
+
+# Special sequences
+increasing-triplet-subsequence
+longest-increasing-subsequence
+longest-consecutive-sequence
+first-missing-positive
+
+# Array manipulation
+rotate-string
+majority-element
+top-k-frequent-elements
+kth-largest-element-in-an-array
+
+# Intervals
+merge-intervals
+insert-interval
+video-stitching
+
+# Other
+find-the-duplicate-number
+single-number
+jump-game
+jump-game-ii
+candy
+minimum-window-substring
